@@ -1,18 +1,16 @@
-import {
-  WebSocketGateway,
-  SubscribeMessage,
-  MessageBody,
-  ConnectedSocket,
+import { 
+  WebSocketGateway, 
+  WebSocketServer, 
   OnGatewayInit,
   OnGatewayConnection,
-  OnGatewayDisconnect,
-  WebSocketServer,
+  OnGatewayDisconnect 
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConversationService } from '../conversation/conversation.service';
 
-interface ConnectedUser {
+// Simple interfaces - no complex types
+interface User {
   userId: string;
   identity: string;
   socketId: string;
@@ -20,177 +18,189 @@ interface ConnectedUser {
   lastSeen: Date;
 }
 
-interface TypingData {
-  conversationSid: string;
-  identity: string;
-  isTyping: boolean;
-}
-
-interface JoinConversationData {
-  conversationSid: string;
-  identity: string;
-}
-
-interface SendMessageData {
-  conversationSid: string;
-  body: string;
-  author: string;
-  media?: string[];
-}
-
+// Simple Chat Gateway - Minimal NestJS integration but easy to understand
 @Injectable()
 @WebSocketGateway({
-  cors: {
-    origin: '*',
-    methods: ['GET', 'POST'],
-    credentials: true,
-  },
-  namespace: '/chat',
+  cors: { origin: '*' },
 })
 export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
-  @WebSocketServer() server: Server;
-  private logger: Logger = new Logger('ChatGateway');
-  private connectedUsers: Map<string, ConnectedUser> = new Map();
-  private conversationUsers: Map<string, Set<string>> = new Map(); // conversationSid -> Set of userIds
+  @WebSocketServer() 
+  private io: Server;
+  
+  private users: Map<string, User> = new Map();
+  private conversations: Map<string, Set<string>> = new Map();
 
   constructor(private conversationService: ConversationService) {}
 
+  // When WebSocket server initializes
   afterInit(server: Server) {
-    this.logger.log('🚀 WebSocket Gateway initialized');
+    console.log('✅ Simple Chat Gateway initialized');
+    this.setupSocketEvents();
   }
 
-  handleConnection(client: Socket, ...args: any[]) {
-    this.logger.log(`🔌 Client connected: ${client.id}`);
+  // When client connects
+  handleConnection(client: Socket) {
+    console.log(`🔌 New connection: ${client.id}`);
   }
 
+  // When client disconnects
   handleDisconnect(client: Socket) {
-    this.logger.log(`🔌 Client disconnected: ${client.id}`);
-    
-    // Find and remove the user from connected users
-    for (const [userId, userData] of this.connectedUsers.entries()) {
-      if (userData.socketId === client.id) {
-        // Remove user from all conversations
-        userData.conversationSids.forEach(conversationSid => {
-          const conversationUsers = this.conversationUsers.get(conversationSid);
-          if (conversationUsers) {
-            conversationUsers.delete(userId);
-            if (conversationUsers.size === 0) {
-              this.conversationUsers.delete(conversationSid);
-            }
-          }
-          
-          // Notify other users in the conversation
-          client.to(conversationSid).emit('user_left', {
-            conversationSid,
-            identity: userData.identity,
-            timestamp: new Date(),
-          });
-        });
-        
-        this.connectedUsers.delete(userId);
-        break;
-      }
-    }
+    this.onDisconnect(client);
   }
 
-  @SubscribeMessage('user_connect')
-  handleUserConnect(
-    @MessageBody() data: { userId: string; identity: string },
-    @ConnectedSocket() client: Socket,
-  ): void {
+  // Setup all socket event listeners - this is where the magic happens
+  private setupSocketEvents(): void {
+    this.io.on('connection', (socket: Socket) => {
+      console.log(`🔌 Client connected: ${socket.id}`);
+
+      // Listen for user connecting
+      socket.on('user_connect', (data: any) => {
+        console.log('📨 Received user_connect:', data);
+        this.onUserConnect(socket, data);
+      });
+
+      // Listen for joining conversation
+      socket.on('join_conversation', (data: any) => {
+        console.log('📨 Received join_conversation:', data);
+        this.onJoinConversation(socket, data);
+      });
+
+      // Listen for leaving conversation
+      socket.on('leave_conversation', (data: any) => {
+        console.log('📨 Received leave_conversation:', data);
+        this.onLeaveConversation(socket, data);
+      });
+
+      // Listen for sending message
+      socket.on('send_message', (data: any) => {
+        console.log('📨 Received send_message:', data);
+        this.onSendMessage(socket, data);
+      });
+
+      // Listen for typing events
+      socket.on('typing_start', (data: any) => {
+        this.onTypingStart(socket, data);
+      });
+
+      socket.on('typing_stop', (data: any) => {
+        this.onTypingStop(socket, data);
+      });
+
+      // Listen for getting online users
+      socket.on('get_online_users', (data: any) => {
+        this.onGetOnlineUsers(socket, data);
+      });
+
+      // Listen for ping
+      socket.on('ping', () => {
+        this.onPing(socket);
+      });
+
+      // Listen for disconnect
+      socket.on('disconnect', () => {
+        this.onDisconnect(socket);
+      });
+    });
+  }
+
+  // When user connects and sends their info
+  private onUserConnect(socket: Socket, data: any): void {
     const { userId, identity } = data;
     
-    this.logger.log(`👤 User connecting: ${identity} (${userId})`);
+    console.log(`👤 User connecting: ${identity} (${userId})`);
     
-    const userData: ConnectedUser = {
+    // Create user data
+    const user: User = {
       userId,
       identity,
-      socketId: client.id,
+      socketId: socket.id,
       conversationSids: [],
       lastSeen: new Date(),
     };
     
-    this.connectedUsers.set(userId, userData);
+    // Store user
+    this.users.set(userId, user);
     
-    client.emit('user_connected', {
+    // Send confirmation back to user
+    socket.emit('user_connected', {
       success: true,
       message: 'Connected to chat server',
       userId,
       identity,
     });
     
-    this.logger.log(`✅ User connected: ${identity}`);
+    console.log(`✅ User connected: ${identity}`);
   }
 
-  @SubscribeMessage('join_conversation')
-  handleJoinConversation(
-    @MessageBody() data: JoinConversationData,
-    @ConnectedSocket() client: Socket,
-  ): void {
+  // When user wants to join a conversation room
+  private onJoinConversation(socket: Socket, data: any): void {
     const { conversationSid, identity } = data;
     
-    this.logger.log(`🏠 User ${identity} joining conversation: ${conversationSid}`);
+    console.log(`🏠 ${identity} joining conversation: ${conversationSid}`);
     
-    // Join the socket room
-    client.join(conversationSid);
+    // Join the socket room (this is how Socket.IO groups connections)
+    socket.join(conversationSid);
     
-    // Update user's conversation list
-    const user = this.findUserBySocketId(client.id);
+    // Find user and update their data
+    const user = this.findUserBySocketId(socket.id);
     if (user) {
+      // Add conversation to user's list
       if (!user.conversationSids.includes(conversationSid)) {
         user.conversationSids.push(conversationSid);
       }
       
-      // Add user to conversation users map
-      if (!this.conversationUsers.has(conversationSid)) {
-        this.conversationUsers.set(conversationSid, new Set());
+      // Add user to conversation tracking
+      if (!this.conversations.has(conversationSid)) {
+        this.conversations.set(conversationSid, new Set());
       }
-      this.conversationUsers.get(conversationSid)!.add(user.userId);
+      this.conversations.get(conversationSid)!.add(user.userId);
       
-      // Notify other users in the conversation
-      client.to(conversationSid).emit('user_joined', {
+      // Tell everyone else in the room that this user joined
+      socket.to(conversationSid).emit('user_joined', {
         conversationSid,
         identity,
         timestamp: new Date(),
       });
       
-      // Send current online users in this conversation
-      const onlineUsers = this.getOnlineUsersInConversation(conversationSid);
-      client.emit('conversation_users', {
+      // Send list of online users to the new user
+      const onlineUsers = this.getOnlineUsers(conversationSid);
+      socket.emit('conversation_users', {
         conversationSid,
         onlineUsers,
       });
     }
     
-    client.emit('joined_conversation', {
+    // Confirm to user they joined
+    socket.emit('joined_conversation', {
       success: true,
       conversationSid,
       message: `Joined conversation ${conversationSid}`,
     });
   }
 
-  @SubscribeMessage('leave_conversation')
-  handleLeaveConversation(
-    @MessageBody() data: JoinConversationData,
-    @ConnectedSocket() client: Socket,
-  ): void {
+  // When user wants to leave a conversation
+  private onLeaveConversation(socket: Socket, data: any): void {
     const { conversationSid, identity } = data;
     
-    this.logger.log(`🚪 User ${identity} leaving conversation: ${conversationSid}`);
+    console.log(`🚪 ${identity} leaving conversation: ${conversationSid}`);
     
-    client.leave(conversationSid);
+    // Leave the socket room
+    socket.leave(conversationSid);
     
-    const user = this.findUserBySocketId(client.id);
+    // Update user data
+    const user = this.findUserBySocketId(socket.id);
     if (user) {
+      // Remove conversation from user's list
       user.conversationSids = user.conversationSids.filter(sid => sid !== conversationSid);
       
-      const conversationUsers = this.conversationUsers.get(conversationSid);
+      // Remove user from conversation tracking
+      const conversationUsers = this.conversations.get(conversationSid);
       if (conversationUsers) {
         conversationUsers.delete(user.userId);
       }
       
-      // Notify other users
-      client.to(conversationSid).emit('user_left', {
+      // Tell others user left
+      socket.to(conversationSid).emit('user_left', {
         conversationSid,
         identity,
         timestamp: new Date(),
@@ -198,54 +208,47 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     }
   }
 
-  @SubscribeMessage('send_message')
-  async handleSendMessage(
-    @MessageBody() data: SendMessageData,
-    @ConnectedSocket() client: Socket,
-  ): Promise<void> {
+  // When user sends a message
+  private async onSendMessage(socket: Socket, data: any): Promise<void> {
     const { conversationSid, body, author, media } = data;
     
-    this.logger.log(`💬 Message from ${author} in ${conversationSid}: ${body.substring(0, 50)}...`);
+    console.log(`💬 Message from ${author}: ${body.substring(0, 50)}...`);
     
     try {
-      // Send message via Twilio
-      const result = await this.conversationService.sendMessage(
-        conversationSid,
-        body,
-        author,
-        media,
+      // Send via Twilio API (this will be the real message)
+      const twilioResult = await this.conversationService.sendMessage(
+        conversationSid, 
+        body, 
+        author, 
+        media
       );
       
-      if (result.success) {
-        // Broadcast message to all users in the conversation (including sender for confirmation)
-        this.server.to(conversationSid).emit('new_message', {
-          conversationSid,
-          message: {
-            sid: result.message_sid,
-            body: result.body,
-            author: result.author,
-            dateCreated: result.date_created,
-            media: media || [],
-          },
-          timestamp: new Date(),
-        });
-        
-        // Send confirmation to sender
-        client.emit('message_sent', {
-          success: true,
-          messageSid: result.message_sid,
-          conversationSid,
-        });
-      } else {
-        client.emit('message_error', {
-          success: false,
-          error: 'Failed to send message',
-          conversationSid,
-        });
-      }
-    } catch (error) {
-      this.logger.error(`❌ Error sending message: ${error.message}`);
-      client.emit('message_error', {
+      // Create message object for Socket.IO broadcast
+      const message = {
+        sid: twilioResult.message_sid,
+        body: twilioResult.body,
+        author: twilioResult.author,
+        dateCreated: twilioResult.date_created,
+        media: media || [],
+      };
+      
+      // Send message to everyone in the conversation room (including sender)
+      this.io.to(conversationSid).emit('new_message', {
+        conversationSid,
+        message,
+        timestamp: new Date(),
+      });
+      
+      // Confirm to sender
+      socket.emit('message_sent', {
+        success: true,
+        messageSid: message.sid,
+        conversationSid,
+      });
+      
+    } catch (error: any) {
+      console.error(`❌ Error: ${error.message}`);
+      socket.emit('message_error', {
         success: false,
         error: error.message,
         conversationSid,
@@ -253,15 +256,12 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     }
   }
 
-  @SubscribeMessage('typing_start')
-  handleTypingStart(
-    @MessageBody() data: TypingData,
-    @ConnectedSocket() client: Socket,
-  ): void {
+  // When user starts typing
+  private onTypingStart(socket: Socket, data: any): void {
     const { conversationSid, identity } = data;
     
-    // Broadcast typing indicator to other users in the conversation
-    client.to(conversationSid).emit('user_typing', {
+    // Tell others in room that user is typing
+    socket.to(conversationSid).emit('user_typing', {
       conversationSid,
       identity,
       isTyping: true,
@@ -269,15 +269,12 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     });
   }
 
-  @SubscribeMessage('typing_stop')
-  handleTypingStop(
-    @MessageBody() data: TypingData,
-    @ConnectedSocket() client: Socket,
-  ): void {
+  // When user stops typing
+  private onTypingStop(socket: Socket, data: any): void {
     const { conversationSid, identity } = data;
     
-    // Broadcast stop typing to other users in the conversation
-    client.to(conversationSid).emit('user_typing', {
+    // Tell others user stopped typing
+    socket.to(conversationSid).emit('user_typing', {
       conversationSid,
       identity,
       isTyping: false,
@@ -285,32 +282,63 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     });
   }
 
-  @SubscribeMessage('get_online_users')
-  handleGetOnlineUsers(
-    @MessageBody() data: { conversationSid: string },
-    @ConnectedSocket() client: Socket,
-  ): void {
+  // When user wants to see who's online
+  private onGetOnlineUsers(socket: Socket, data: any): void {
     const { conversationSid } = data;
-    const onlineUsers = this.getOnlineUsersInConversation(conversationSid);
+    const onlineUsers = this.getOnlineUsers(conversationSid);
     
-    client.emit('online_users', {
+    socket.emit('online_users', {
       conversationSid,
       users: onlineUsers,
     });
   }
 
-  @SubscribeMessage('ping')
-  handlePing(@ConnectedSocket() client: Socket): void {
-    const user = this.findUserBySocketId(client.id);
+  // Health check ping
+  private onPing(socket: Socket): void {
+    const user = this.findUserBySocketId(socket.id);
     if (user) {
       user.lastSeen = new Date();
     }
-    client.emit('pong', { timestamp: new Date() });
+    socket.emit('pong', { timestamp: new Date() });
   }
 
-  // Helper methods
-  private findUserBySocketId(socketId: string): ConnectedUser | undefined {
-    for (const user of this.connectedUsers.values()) {
+  // When user disconnects
+  private onDisconnect(socket: Socket): void {
+    console.log(`🔌 Disconnected: ${socket.id}`);
+    
+    // Find user and clean up
+    for (const [userId, user] of this.users.entries()) {
+      if (user.socketId === socket.id) {
+        // Remove from all conversations
+        user.conversationSids.forEach(conversationSid => {
+          const conversationUsers = this.conversations.get(conversationSid);
+          if (conversationUsers) {
+            conversationUsers.delete(userId);
+            if (conversationUsers.size === 0) {
+              this.conversations.delete(conversationSid);
+            }
+          }
+          
+          // Tell others user left
+          socket.to(conversationSid).emit('user_left', {
+            conversationSid,
+            identity: user.identity,
+            timestamp: new Date(),
+          });
+        });
+        
+        // Remove user completely
+        this.users.delete(userId);
+        break;
+      }
+    }
+  }
+
+  // Helper methods - simple and clear
+  
+  // Find user by their socket ID
+  private findUserBySocketId(socketId: string): User | undefined {
+    for (const user of this.users.values()) {
       if (user.socketId === socketId) {
         return user;
       }
@@ -318,13 +346,14 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     return undefined;
   }
 
-  private getOnlineUsersInConversation(conversationSid: string): any[] {
-    const conversationUsers = this.conversationUsers.get(conversationSid);
+  // Get list of online users in a conversation
+  private getOnlineUsers(conversationSid: string): any[] {
+    const conversationUsers = this.conversations.get(conversationSid);
     if (!conversationUsers) return [];
     
     const onlineUsers = [];
     for (const userId of conversationUsers) {
-      const user = this.connectedUsers.get(userId);
+      const user = this.users.get(userId);
       if (user) {
         onlineUsers.push({
           userId: user.userId,
@@ -337,28 +366,32 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     return onlineUsers;
   }
 
-  // Public methods for external use (called from HTTP endpoints)
-  public broadcastNewMessage(conversationSid: string, message: any): void {
-    this.server.to(conversationSid).emit('new_message', {
+  // Public methods you can call from outside
+
+  // Broadcast a message to everyone in a conversation
+  public broadcastMessage(conversationSid: string, message: any): void {
+    this.io.to(conversationSid).emit('new_message', {
       conversationSid,
       message,
       timestamp: new Date(),
     });
   }
 
-  public broadcastConversationUpdate(conversationSid: string, update: any): void {
-    this.server.to(conversationSid).emit('conversation_updated', {
+  // Broadcast any update to a conversation
+  public broadcastUpdate(conversationSid: string, update: any): void {
+    this.io.to(conversationSid).emit('conversation_updated', {
       conversationSid,
       update,
       timestamp: new Date(),
     });
   }
 
+  // Broadcast user status change
   public broadcastUserStatus(userId: string, status: any): void {
-    const user = this.connectedUsers.get(userId);
+    const user = this.users.get(userId);
     if (user) {
       user.conversationSids.forEach(conversationSid => {
-        this.server.to(conversationSid).emit('user_status_changed', {
+        this.io.to(conversationSid).emit('user_status_changed', {
           conversationSid,
           userId,
           identity: user.identity,
@@ -369,12 +402,19 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     }
   }
 
+  // Get total connected users count
   public getConnectedUsersCount(): number {
-    return this.connectedUsers.size;
+    return this.users.size;
   }
 
+  // Get users in a specific conversation
   public getUsersInConversation(conversationSid: string): string[] {
-    const users = this.conversationUsers.get(conversationSid);
+    const users = this.conversations.get(conversationSid);
     return users ? Array.from(users) : [];
+  }
+
+  // Get the Socket.IO server instance
+  public getSocketServer(): Server {
+    return this.io;
   }
 }

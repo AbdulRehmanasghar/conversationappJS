@@ -5,10 +5,17 @@ import * as jwt from 'jsonwebtoken';
 
 @Injectable()
 export class ConversationService {
+  private chatGateway: any; // Will be injected later to avoid circular dependency
+
   constructor(
     private twilioService: TwilioService,
     private configService: ConfigService,
   ) {}
+
+  // Inject ChatGateway after module initialization to avoid circular dependency
+  setChatGateway(chatGateway: any) {
+    this.chatGateway = chatGateway;
+  }
 
   async generateToken(userId: string): Promise<string> {
     const AccessToken = require('twilio').jwt.AccessToken;
@@ -151,13 +158,26 @@ export class ConversationService {
         .conversations.v1.conversations(conversationSid)
         .messages.create(messageData);
 
-      return {
+      const result = {
         success: true,
         message_sid: message.sid,
         body: message.body,
         author: message.author,
         date_created: message.dateCreated,
       };
+
+      // Broadcast via Socket.IO if ChatGateway is available
+      if (this.chatGateway) {
+        this.chatGateway.broadcastMessage(conversationSid, {
+          sid: message.sid,
+          body: message.body,
+          author: message.author,
+          dateCreated: message.dateCreated,
+          media: media || [],
+        });
+      }
+
+      return result;
     } catch (error) {
       throw new Error(`Failed to send message: ${error.message}`);
     }
