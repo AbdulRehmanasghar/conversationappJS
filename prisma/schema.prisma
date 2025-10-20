@@ -1,0 +1,59 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model TwilioUser {
+  id            Int      @id @default(autoincrement())
+  identity      String   @unique
+  friendlyName  String?  @map("friendly_name")
+  email         String?
+  phoneNumber   String?  @map("phone_number")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("twilio_users")
+}
+
+model UserFcmToken {
+  id         Int      @id @default(autoincrement())
+  userId     String   @map("user_id")
+  fcmToken   String   @map("fcm_token")
+  deviceType String?  @map("device_type")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("user_fcm_tokens")
+}
+
+model Group {
+  id              Int      @id @default(autoincrement())
+  groupId         String   @unique @map("group_id")
+  groupName       String   @map("group_name")
+  conversationSid String?  @map("conversation_sid")
+  createdBy       String   @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  participants GroupParticipant[]
+
+  @@map("groups")
+}
+
+model GroupParticipant {
+  id        Int      @id @default(autoincrement())
+  groupId   String   @map("group_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  group Group @relation(fields: [groupId], references: [groupId])
+
+  @@map("group_participants")
+}
