@@ -15,8 +15,8 @@ export declare class UserController {
                 friendly_name: string;
             };
             database_user: {
-                friendlyName: string | null;
                 identity: string;
+                friendlyName: string | null;
                 email: string | null;
                 phoneNumber: string | null;
                 createdAt: Date;
@@ -29,8 +29,8 @@ export declare class UserController {
         status: number;
         message: string;
         data: {
-            friendlyName: string | null;
             identity: string;
+            friendlyName: string | null;
             email: string | null;
             phoneNumber: string | null;
             createdAt: Date;
@@ -53,10 +53,10 @@ export declare class UserController {
             success: boolean;
             message: string;
             data: {
-                userId: string;
                 createdAt: Date;
                 updatedAt: Date;
                 id: number;
+                userId: string;
                 fcmToken: string;
                 deviceType: string | null;
             };
