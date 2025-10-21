@@ -1,0 +1,31 @@
+import { OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect } from '@nestjs/websockets';
+import { Server, Socket } from 'socket.io';
+import { ConversationService } from '../conversation/conversation.service';
+export declare class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+    private conversationService;
+    private io;
+    private users;
+    private conversations;
+    constructor(conversationService: ConversationService);
+    afterInit(server: Server): void;
+    handleConnection(client: Socket): void;
+    handleDisconnect(client: Socket): void;
+    private setupSocketEvents;
+    private onUserConnect;
+    private onJoinConversation;
+    private onLeaveConversation;
+    private onSendMessage;
+    private onTypingStart;
+    private onTypingStop;
+    private onGetOnlineUsers;
+    private onPing;
+    private onDisconnect;
+    private findUserBySocketId;
+    private getOnlineUsers;
+    broadcastMessage(conversationSid: string, message: any): void;
+    broadcastUpdate(conversationSid: string, update: any): void;
+    broadcastUserStatus(userId: string, status: any): void;
+    getConnectedUsersCount(): number;
+    getUsersInConversation(conversationSid: string): string[];
+    getSocketServer(): Server;
+}
