@@ -13,8 +13,8 @@ export declare class UserService {
             friendly_name: string;
         };
         database_user: {
-            identity: string;
             friendlyName: string | null;
+            identity: string;
             email: string | null;
             phoneNumber: string | null;
             createdAt: Date;
@@ -23,8 +23,8 @@ export declare class UserService {
         };
     }>;
     getAllTwilioUsers(): Promise<{
-        identity: string;
         friendlyName: string | null;
+        identity: string;
         email: string | null;
         phoneNumber: string | null;
         createdAt: Date;
@@ -39,10 +39,10 @@ export declare class UserService {
         success: boolean;
         message: string;
         data: {
+            userId: string;
             createdAt: Date;
             updatedAt: Date;
             id: number;
-            userId: string;
             fcmToken: string;
             deviceType: string | null;
         };
