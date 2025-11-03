@@ -252,6 +252,7 @@ let ChatGateway = class ChatGateway {
             message,
             timestamp: new Date(),
         });
+        console.log('Broadcasted message');
     }
     broadcastUpdate(conversationSid, update) {
         this.io.to(conversationSid).emit('conversation_updated', {

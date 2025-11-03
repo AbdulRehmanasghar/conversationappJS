@@ -160,34 +160,40 @@ let ConversationService = class ConversationService {
     }
     async listConversations(userId) {
         try {
-            const conversations = await this.twilioService
-                .getClient()
-                .conversations.v1.conversations.list({ limit: 1000 });
-            if (userId) {
-                const userConversations = [];
-                for (const conversation of conversations) {
-                    const participants = await this.twilioService
-                        .getClient()
-                        .conversations.v1.conversations(conversation.sid)
-                        .participants.list();
-                    const hasUser = participants.some(p => p.identity === userId);
-                    if (hasUser) {
-                        userConversations.push({
-                            sid: conversation.sid,
-                            friendly_name: conversation.friendlyName,
-                            date_created: conversation.dateCreated,
-                            date_updated: conversation.dateUpdated,
-                        });
-                    }
-                }
-                return userConversations;
-            }
-            return conversations.map(conversation => ({
-                sid: conversation.sid,
-                friendly_name: conversation.friendlyName,
-                date_created: conversation.dateCreated,
-                date_updated: conversation.dateUpdated,
-            }));
+            const client = this.twilioService.getClient();
+            const conversations = await client.conversations.v1.conversations.list({ limit: 1000 });
+            const convoPromises = conversations.map(async (conversation) => {
+                const convoSid = conversation.sid;
+                const messagesP = client.conversations.v1.conversations(convoSid).messages.list({ limit: 1 });
+                const participantsP = userId ? client.conversations.v1.conversations(convoSid).participants.list() : Promise.resolve([]);
+                const [messagesRes, participantsRes] = await Promise.allSettled([messagesP, participantsP]);
+                const last = messagesRes.status === 'fulfilled' && messagesRes.value && messagesRes.value.length > 0 ? messagesRes.value[0] : null;
+                const participants = participantsRes.status === 'fulfilled' ? participantsRes.value : [];
+                const hasUser = userId ? participants.some((p) => p.identity === userId) : true;
+                if (!hasUser)
+                    return null;
+                return {
+                    sid: convoSid,
+                    friendly_name: conversation.friendlyName,
+                    date_created: conversation.dateCreated,
+                    date_updated: conversation.dateUpdated,
+                    last_message: last
+                        ? {
+                            sid: last.sid,
+                            body: last.body,
+                            author: last.author,
+                            date_created: last.dateCreated,
+                            media: last.media || [],
+                        }
+                        : null,
+                };
+            });
+            const settled = await Promise.allSettled(convoPromises);
+            const result = settled
+                .filter((s) => s.status === 'fulfilled')
+                .map((s) => s.value)
+                .filter(Boolean);
+            return result;
         }
         catch (error) {
             throw new Error(`Failed to list conversations: ${error.message}`);

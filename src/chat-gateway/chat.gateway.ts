@@ -48,7 +48,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     this.onDisconnect(client);
   }
 
-  // Setup all socket event listeners - this is where the magic happens
+  // Setup all socket event listeners
   private setupSocketEvents(): void {
     this.io.on('connection', (socket: Socket) => {
       console.log(`🔌 Client connected: ${socket.id}`);
@@ -333,8 +333,6 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       }
     }
   }
-
-  // Helper methods - simple and clear
   
   // Find user by their socket ID
   private findUserBySocketId(socketId: string): User | undefined {
@@ -375,6 +373,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       message,
       timestamp: new Date(),
     });
+    console.log('Broadcasted message');
   }
 
   // Broadcast any update to a conversation

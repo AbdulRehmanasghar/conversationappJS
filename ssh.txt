@@ -1,0 +1,4 @@
+server for Twilio: 4.204.32.85
+username: sjavms
+password: sjaVMS4Tw!llio
+ssh sjavms@4.204.32.85
