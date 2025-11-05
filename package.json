@@ -8,7 +8,7 @@
   "scripts": {
     "compile": "npx ts-node src/main.ts",
     "compile:watch": "npx ts-node-dev --respawn src/main.ts",
-    "build": " npx tsc ",
+    "build": "npx ts-node src/main.ts && tsc -p tsconfig.build.json",
     "build:clean": "rimraf dist && nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",

@@ -1,13 +1,30 @@
-import { IsString, IsNotEmpty, IsOptional, IsArray } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsArray, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class ParticipantDto {
+  @IsString()
+  @IsNotEmpty()
+  id: string;
+
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @IsString()
+  @IsOptional()
+  image?: string; // base64 image
+}
 
 export class CreateConversationDto {
   @IsString()
-  @IsNotEmpty()
-  friendly_name: string;
+  @IsOptional()
+  friendly_name?: string; // Made optional since it will be auto-generated
 
   @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ParticipantDto)
   @IsOptional()
-  participants?: string[];
+  participants?: ParticipantDto[];
 
   @IsString()
   @IsOptional()

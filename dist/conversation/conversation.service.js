@@ -34,14 +34,26 @@ let ConversationService = class ConversationService {
     }
     async createConversation(friendlyName, participants) {
         try {
+            let conversationName = friendlyName;
+            if (!conversationName && participants && participants.length > 0) {
+                if (typeof participants[0] === 'object' && participants[0].id) {
+                    conversationName = participants
+                        .map(p => `${p.id}_${p.name}_${p.image || ''}`)
+                        .join('+');
+                }
+                else {
+                    conversationName = participants.join('_');
+                }
+            }
             const conversation = await this.twilioService
                 .getClient()
                 .conversations.v1.conversations.create({
-                friendlyName,
+                friendlyName: conversationName,
             });
             if (participants && participants.length > 0) {
                 for (const participant of participants) {
-                    await this.addChatParticipant(conversation.sid, participant);
+                    const participantId = typeof participant === 'object' ? participant.id : participant;
+                    await this.addChatParticipant(conversation.sid, participantId);
                 }
             }
             return {

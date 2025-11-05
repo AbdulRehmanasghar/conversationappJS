@@ -9,18 +9,39 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SendMessageDto = exports.AddParticipantDto = exports.CreatePrivateConversationDto = exports.CreateConversationDto = void 0;
+exports.SendMessageDto = exports.AddParticipantDto = exports.CreatePrivateConversationDto = exports.CreateConversationDto = exports.ParticipantDto = void 0;
 const class_validator_1 = require("class-validator");
+const class_transformer_1 = require("class-transformer");
+class ParticipantDto {
+}
+exports.ParticipantDto = ParticipantDto;
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], ParticipantDto.prototype, "id", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], ParticipantDto.prototype, "name", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], ParticipantDto.prototype, "image", void 0);
 class CreateConversationDto {
 }
 exports.CreateConversationDto = CreateConversationDto;
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreateConversationDto.prototype, "friendly_name", void 0);
 __decorate([
     (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => ParticipantDto),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Array)
 ], CreateConversationDto.prototype, "participants", void 0);

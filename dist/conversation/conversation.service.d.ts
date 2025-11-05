@@ -7,11 +7,11 @@ export declare class ConversationService {
     constructor(twilioService: TwilioService, configService: ConfigService);
     setChatGateway(chatGateway: any): void;
     generateToken(userId: string): Promise<string>;
-    createConversation(friendlyName: string, participants?: string[]): Promise<{
+    createConversation(friendlyName?: string, participants?: any[]): Promise<{
         success: boolean;
         conversation_sid: string;
         friendly_name: string;
-        participants: string[];
+        participants: any[];
     }>;
     createPrivateConversation(user1: string, user2: string): Promise<{
         success: boolean;

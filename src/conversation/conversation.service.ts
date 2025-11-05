@@ -38,17 +38,35 @@ export class ConversationService {
     return token.toJwt();
   }
 
-  async createConversation(friendlyName: string, participants?: string[]) {
+  async createConversation(friendlyName?: string, participants?: any[]) {
     try {
+      // Generate friendly name from participants if not provided
+      let conversationName = friendlyName;
+      
+      if (!conversationName && participants && participants.length > 0) {
+        // Check if participants are in new format (objects with id, name, image)
+        if (typeof participants[0] === 'object' && participants[0].id) {
+          // New format: concatenate id_name_image for each participant
+          conversationName = participants
+            .map(p => `${p.id}_${p.name}_${p.image || ''}`)
+            .join('+');
+        } else {
+          // Old format: just join participant strings
+          conversationName = participants.join('_');
+        }
+      }
+
       const conversation = await this.twilioService
         .getClient()
         .conversations.v1.conversations.create({
-          friendlyName,
+          friendlyName: conversationName,
         });
 
       if (participants && participants.length > 0) {
         for (const participant of participants) {
-          await this.addChatParticipant(conversation.sid, participant);
+          // Handle both old format (string) and new format (object)
+          const participantId = typeof participant === 'object' ? participant.id : participant;
+          await this.addChatParticipant(conversation.sid, participantId);
         }
       }
 

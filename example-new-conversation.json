@@ -1,0 +1,15 @@
+{
+  "participants": [
+    {
+      "id": "user123",
+      "name": "John Doe",
+      "image": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD//gA7Q1JFQVR..."
+    },
+    {
+      "id": "user456", 
+      "name": "Jane Smith",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=="
+    }
+  ],
+  "created_by": "user123"
+}

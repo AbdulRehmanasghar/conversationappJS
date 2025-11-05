@@ -1,6 +1,11 @@
+export declare class ParticipantDto {
+    id: string;
+    name: string;
+    image?: string;
+}
 export declare class CreateConversationDto {
-    friendly_name: string;
-    participants?: string[];
+    friendly_name?: string;
+    participants?: ParticipantDto[];
     created_by?: string;
 }
 export declare class CreatePrivateConversationDto {

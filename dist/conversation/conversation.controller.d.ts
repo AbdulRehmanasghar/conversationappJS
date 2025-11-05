@@ -16,7 +16,7 @@ export declare class ConversationController {
             success: boolean;
             conversation_sid: string;
             friendly_name: string;
-            participants: string[];
+            participants: any[];
         };
     }>;
     createPrivateConversation(createPrivateConversationDto: CreatePrivateConversationDto): Promise<{
