@@ -10,8 +10,17 @@ module.exports = {
       autorestart: true,
       restart_delay: 2000,
       max_restarts: 10,
+      // default env (used when no --env is provided)
       env: {
         NODE_ENV: 'development',
+      },
+      // when starting with `--env development` pm2 looks for `env_development`
+      env_development: {
+        NODE_ENV: 'development',
+      },
+      // optional production env
+      env_production: {
+        NODE_ENV: 'production',
       },
     },
   ],
