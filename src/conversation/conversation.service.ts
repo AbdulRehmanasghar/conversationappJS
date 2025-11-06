@@ -122,12 +122,22 @@ export class ConversationService {
       const existingConvo = uniqueName ? conversations.find((c) => c.uniqueName === uniqueName) : undefined;
 
       if (existingConvo) {
+        // If conversation already exists, fetch recent messages and return them
+        let existingMessages: any[] = [];
+        try {
+          existingMessages = await this.getMessages(existingConvo.sid);
+        } catch (msgErr) {
+          // If fetching messages fails, return empty array but still return the convo
+          existingMessages = [];
+        }
+
         return {
           success: true,
           conversation_sid: existingConvo.sid,
           friendly_name: existingConvo.friendlyName,
           participants: participants,
           existing: true,
+          messages: existingMessages,
         };
       }
 
