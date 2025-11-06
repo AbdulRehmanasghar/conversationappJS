@@ -71,12 +71,12 @@ export class ConversationController {
 
   @Post('newconversation')
   async createPrivateConversation(
-    @Body() createPrivateConversationDto: CreatePrivateConversationDto,
+    @Body() createConversationDto: CreateConversationDto,
   ) {
     try {
       const result = await this.conversationService.createPrivateConversation(
-        createPrivateConversationDto.user1,
-        createPrivateConversationDto.user2,
+          createConversationDto.friendly_name,
+        createConversationDto.participants,
       );
 
       return {

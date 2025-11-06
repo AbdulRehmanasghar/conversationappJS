@@ -81,44 +81,76 @@ export class ConversationService {
     }
   }
 
-  async createPrivateConversation(user1: string, user2: string) {
-    const uniqueName = [user1, user2].sort().join('_');
-    
+  async createPrivateConversation(friendlyName?: string, participants?: any[]) {
+    // Support both call patterns:
+    // 1) createPrivateConversation(friendlyName, participants)
+    // 2) createPrivateConversation(participants)  (when caller passes array as first arg)
+    if (!participants && Array.isArray(friendlyName)) {
+      participants = friendlyName as any[];
+      friendlyName = undefined;
+    }
+
+    participants = participants || [];
+
+    // Determine identities for uniqueName (support object or string participants)
+    const identities = participants.map((p) => (typeof p === 'object' && p.id ? p.id : p));
+
+    // Build uniqueName for a private conversation (sort to keep consistent)
+    const uniqueName = [...identities].sort().join('_');
+
     try {
-      // Check if conversation already exists
-      const conversations = await this.twilioService
-        .getClient()
-        .conversations.v1.conversations.list({ limit: 1000 });
-      
-      const existingConvo = conversations.find(c => c.uniqueName === uniqueName);
-      
+      // Generate friendly name from participants similar to createConversation
+      let conversationName: string | undefined = friendlyName;
+
+      if (!conversationName && participants && participants.length > 0) {
+        // Check if participants are in new format (objects with id, name, image)
+        if (typeof participants[0] === 'object' && participants[0].id) {
+          // New format: concatenate id_name_image for each participant
+          conversationName = participants
+            .map((p: any) => `${p.id}_${p.name}_${p.image || ''}`)
+            .join('+');
+        } else {
+          // Old format: just join participant strings
+          conversationName = identities.join('_');
+        }
+      }
+
+      // Check if conversation already exists (use uniqueName when possible)
+      const client = this.twilioService.getClient();
+      const conversations = await client.conversations.v1.conversations.list({ limit: 1000 });
+
+      const existingConvo = uniqueName ? conversations.find((c) => c.uniqueName === uniqueName) : undefined;
+
       if (existingConvo) {
         return {
           success: true,
           conversation_sid: existingConvo.sid,
           friendly_name: existingConvo.friendlyName,
-          participants: [user1, user2],
+          participants: participants,
           existing: true,
         };
       }
 
       // Create new conversation
-      const conversation = await this.twilioService
-        .getClient()
-        .conversations.v1.conversations.create({
-          friendlyName: `Private: ${user1} & ${user2}`,
-          uniqueName,
-        });
+      const conversation = await client.conversations.v1.conversations.create({
+        friendlyName: conversationName || (identities.length >= 2 ? `Private: ${identities[0]} & ${identities[1]}` : 'Private Conversation'),
+        uniqueName: uniqueName || undefined,
+      });
 
-      // Add participants
-      await this.addChatParticipant(conversation.sid, user1);
-      await this.addChatParticipant(conversation.sid, user2);
+      // Add participants (use identities)
+      for (const id of identities) {
+        try {
+          await this.addChatParticipant(conversation.sid, id);
+        } catch (err) {
+          // Continue adding other participants even if one fails
+        }
+      }
 
       return {
         success: true,
         conversation_sid: conversation.sid,
         friendly_name: conversation.friendlyName,
-        participants: [user1, user2],
+        participants: participants,
         existing: false,
       };
     } catch (error) {
