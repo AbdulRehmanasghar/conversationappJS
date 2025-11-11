@@ -6,9 +6,9 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-  "compile": "npx ts-node src/main.ts",
-  "compile:watch": "npx ts-node-dev --respawn src/main.ts",
-  "prisma:generate": "prisma generate",
+    "compile": "npx ts-node src/main.ts",
+    "compile:watch": "npx ts-node-dev --respawn src/main.ts",
+    "prisma:generate": "prisma generate",
     "build": "npx ts-node src/main.ts && tsc -p tsconfig.build.json",
     "build:clean": "rimraf dist && nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
@@ -25,7 +25,8 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "scripts:delete-conversations": "npx ts-node scripts/delete-all-conversations.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.20",

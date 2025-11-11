@@ -253,12 +253,30 @@ export class ConversationService {
       const convoPromises = conversations.map(async (conversation) => {
         const convoSid = conversation.sid;
 
-        const messagesP = client.conversations.v1.conversations(convoSid).messages.list({ limit: 1 });
+  // Fetch a batch of recent messages and pick the most-recent one by dateCreated.
+  // Some Twilio accounts may return messages in ascending order; to be safe we
+  // fetch a small batch and pick the newest message client-side.
+  const messagesP = client.conversations.v1.conversations(convoSid).messages.list({ limit: 100 });
         const participantsP = userId ? client.conversations.v1.conversations(convoSid).participants.list() : Promise.resolve([]);
 
         const [messagesRes, participantsRes] = await Promise.allSettled([messagesP, participantsP]);
 
-        const last = messagesRes.status === 'fulfilled' && messagesRes.value && messagesRes.value.length > 0 ? messagesRes.value[0] : null;
+        let last = null;
+        if (messagesRes.status === 'fulfilled' && Array.isArray(messagesRes.value) && messagesRes.value.length > 0) {
+          // Find the message with the latest dateCreated. dateCreated can be a Date or string.
+          try {
+            last = messagesRes.value.reduce((a: any, b: any) => {
+              const aDate = a && a.dateCreated ? new Date(a.dateCreated) : new Date(0);
+              const bDate = b && b.dateCreated ? new Date(b.dateCreated) : new Date(0);
+              return aDate >= bDate ? a : b;
+            });
+          } catch (e) {
+            // Fallback: use the last element in the array if reduce fails for any reason
+            last = messagesRes.value[messagesRes.value.length - 1];
+          }
+        } else {
+          last = null;
+        }
         const participants = participantsRes.status === 'fulfilled' ? participantsRes.value : [];
 
         const hasUser = userId ? participants.some((p) => p.identity === userId) : true;
