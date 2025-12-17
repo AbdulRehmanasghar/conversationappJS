@@ -140,7 +140,7 @@
         
         <div class="conversation-info">
             <h3>📋 Conversation Details</h3>
-            <p><strong>Conversation ID:</strong> CHdcad65958cd348809b555eb1517acfb3</p>
+            <p><strong>Conversation ID:</strong>CH8219df1722d3452faf44c7ccbac94aff</p>
             <p><strong>Name:</strong> P_2+test_1</p>
             <p><strong>Created:</strong> 2025-10-16</p>
         </div>
@@ -185,7 +185,7 @@
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script>
         // Twilio Conversation Configuration
-        const CONVERSATION_SID = 'CHdcad65958cd348809b555eb1517acfb3';
+        const CONVERSATION_SID = 'CH8219df1722d3452faf44c7ccbac94aff';
         const API_BASE = '/api/conversations';
         
         // Current user and connection state
@@ -285,7 +285,6 @@
                 console.log('👋 User left:', data);
                 addSystemMessage(`${data.identity} left the conversation`);
             });
-
             socket.on('user_typing', (data) => {
                 console.log('⌨️ User typing:', data);
                 showTyping(data.identity, data.isTyping);

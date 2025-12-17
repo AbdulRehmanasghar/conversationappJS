@@ -1,21 +1,45 @@
-import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import * as admin from 'firebase-admin';
+import { Injectable } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import * as admin from "firebase-admin";
 
 @Injectable()
 export class PushNotificationService {
+  private firebaseEnabled = false;
   constructor(private configService: ConfigService) {
     this.initializeFirebase();
   }
 
   private initializeFirebase() {
-    const firebaseCredentialsPath = this.configService.get<string>('FIREBASE_CREDENTIALS');
-    
-    if (!admin.apps.length) {
-      const serviceAccount = require(`../../${firebaseCredentialsPath}`);
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-      });
+    const firebaseCredentialsPath = this.configService.get<string>(
+      "FIREBASE_CREDENTIALS"
+    );
+
+    // If no credentials provided, skip initialization (safe to ignore Firebase)
+    if (!firebaseCredentialsPath) {
+      console.log(
+        "⚠️ Firebase credentials not set; skipping Firebase initialization"
+      );
+      this.firebaseEnabled = false;
+      return;
+    }
+
+    try {
+      if (!admin.apps.length) {
+        const serviceAccount = require(`../../${firebaseCredentialsPath}`);
+        admin.initializeApp({
+          credential: admin.credential.cert(serviceAccount),
+        });
+        this.firebaseEnabled = true;
+        console.log("✅ Firebase initialized");
+      } else {
+        this.firebaseEnabled = true;
+      }
+    } catch (err: any) {
+      this.firebaseEnabled = false;
+      console.warn(
+        "⚠️ Failed to initialize Firebase:",
+        err && err.message ? err.message : err
+      );
     }
   }
 
@@ -23,15 +47,22 @@ export class PushNotificationService {
     userId: string,
     title: string,
     body: string,
-    data?: Record<string, any>,
+    data?: Record<string, any>
   ) {
     try {
+      if (!this.firebaseEnabled) {
+        return {
+          success: false,
+          message: "Firebase not configured",
+          user_id: userId,
+        };
+      }
       // In a real application, you would fetch the FCM token from database
       // For now, we'll assume the userId contains the FCM token or fetch from a service
       const fcmToken = await this.getFcmTokenByUserId(userId);
-      
+
       if (!fcmToken) {
-        throw new Error('FCM token not found for user');
+        throw new Error("FCM token not found for user");
       }
 
       const message = {
@@ -44,7 +75,7 @@ export class PushNotificationService {
       };
 
       const response = await admin.messaging().send(message);
-      
+
       return {
         success: true,
         message_id: response,
@@ -59,14 +90,21 @@ export class PushNotificationService {
     groupId: string,
     title: string,
     body: string,
-    data?: Record<string, any>,
+    data?: Record<string, any>
   ) {
     try {
+      if (!this.firebaseEnabled) {
+        return {
+          success: false,
+          message: "Firebase not configured",
+          group_id: groupId,
+        };
+      }
       // Get all FCM tokens for group members
       const fcmTokens = await this.getFcmTokensByGroupId(groupId);
-      
+
       if (!fcmTokens || fcmTokens.length === 0) {
-        throw new Error('No FCM tokens found for group members');
+        throw new Error("No FCM tokens found for group members");
       }
 
       const message = {
@@ -82,7 +120,7 @@ export class PushNotificationService {
       };
 
       const response = await admin.messaging().sendMulticast(message);
-      
+
       return {
         success: true,
         success_count: response.successCount,
@@ -91,7 +129,9 @@ export class PushNotificationService {
         responses: response.responses,
       };
     } catch (error) {
-      throw new Error(`Failed to send group push notification: ${error.message}`);
+      throw new Error(
+        `Failed to send group push notification: ${error.message}`
+      );
     }
   }
 
@@ -99,9 +139,12 @@ export class PushNotificationService {
     topic: string,
     title: string,
     body: string,
-    data?: Record<string, any>,
+    data?: Record<string, any>
   ) {
     try {
+      if (!this.firebaseEnabled) {
+        return { success: false, message: "Firebase not configured", topic };
+      }
       const message = {
         notification: {
           title,
@@ -112,7 +155,7 @@ export class PushNotificationService {
       };
 
       const response = await admin.messaging().send(message);
-      
+
       return {
         success: true,
         message_id: response,
@@ -125,8 +168,13 @@ export class PushNotificationService {
 
   async subscribeToTopic(fcmToken: string, topic: string) {
     try {
-      const response = await admin.messaging().subscribeToTopic([fcmToken], topic);
-      
+      if (!this.firebaseEnabled) {
+        return { success: false, message: "Firebase not configured" };
+      }
+      const response = await admin
+        .messaging()
+        .subscribeToTopic([fcmToken], topic);
+
       return {
         success: true,
         success_count: response.successCount,
@@ -139,8 +187,13 @@ export class PushNotificationService {
 
   async unsubscribeFromTopic(fcmToken: string, topic: string) {
     try {
-      const response = await admin.messaging().unsubscribeFromTopic([fcmToken], topic);
-      
+      if (!this.firebaseEnabled) {
+        return { success: false, message: "Firebase not configured" };
+      }
+      const response = await admin
+        .messaging()
+        .unsubscribeFromTopic([fcmToken], topic);
+
       return {
         success: true,
         success_count: response.successCount,
