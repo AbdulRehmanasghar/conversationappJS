@@ -377,9 +377,11 @@ export class ChatGateway
   // Broadcast a message to everyone connected to socket
   public broadcastMessage(conversationSid: string, message: any): void {
     this.io.emit("new_message", {
-      conversationSid,
-      message,
-      timestamp: new Date(),
+      sid: message.sid,
+      body: message.body,
+      author: message.author,
+      dateCreated: message.dateCreated,
+      media: message.media || [],
     });
     console.log("Broadcasted message");
   }
