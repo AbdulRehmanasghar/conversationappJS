@@ -1,7 +1,9 @@
-import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { TwilioService } from '../twilio/twilio.service';
-import * as jwt from 'jsonwebtoken';
+import { Injectable } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { TwilioService } from "../twilio/twilio.service";
+import * as jwt from "jsonwebtoken";
+import * as fs from "fs";
+import { Readable } from "stream";
 
 @Injectable()
 export class ConversationService {
@@ -9,7 +11,7 @@ export class ConversationService {
 
   constructor(
     private twilioService: TwilioService,
-    private configService: ConfigService,
+    private configService: ConfigService
   ) {}
 
   // Inject ChatGateway after module initialization to avoid circular dependency
@@ -18,11 +20,11 @@ export class ConversationService {
   }
 
   async generateToken(userId: string): Promise<string> {
-    const AccessToken = require('twilio').jwt.AccessToken;
+    const AccessToken = require("twilio").jwt.AccessToken;
     const ChatGrant = AccessToken.ChatGrant;
 
     const identity = `user_${userId}`;
-    
+
     const token = new AccessToken(
       this.twilioService.getAccountSid(),
       this.twilioService.getApiKey(),
@@ -42,17 +44,17 @@ export class ConversationService {
     try {
       // Generate friendly name from participants if not provided
       let conversationName = friendlyName;
-      
+
       if (!conversationName && participants && participants.length > 0) {
         // Check if participants are in new format (objects with id, name, image)
-        if (typeof participants[0] === 'object' && participants[0].id) {
+        if (typeof participants[0] === "object" && participants[0].id) {
           // New format: concatenate id_name_image for each participant
           conversationName = participants
-            .map(p => `${p.id}_${p.name}_${p.image || ''}`)
-            .join('+');
+            .map((p) => `${p.id}_${p.name}_${p.image || ""}`)
+            .join("+");
         } else {
           // Old format: just join participant strings
-          conversationName = participants.join('_');
+          conversationName = participants.join("_");
         }
       }
 
@@ -65,7 +67,8 @@ export class ConversationService {
       if (participants && participants.length > 0) {
         for (const participant of participants) {
           // Handle both old format (string) and new format (object)
-          const participantId = typeof participant === 'object' ? participant.id : participant;
+          const participantId =
+            typeof participant === "object" ? participant.id : participant;
           await this.addChatParticipant(conversation.sid, participantId);
         }
       }
@@ -93,10 +96,12 @@ export class ConversationService {
     participants = participants || [];
 
     // Determine identities for uniqueName (support object or string participants)
-    const identities = participants.map((p) => (typeof p === 'object' && p.id ? p.id : p));
+    const identities = participants.map((p) =>
+      typeof p === "object" && p.id ? p.id : p
+    );
 
     // Build uniqueName for a private conversation (sort to keep consistent)
-    const uniqueName = [...identities].sort().join('_');
+    const uniqueName = [...identities].sort().join("_");
 
     try {
       // Generate friendly name from participants similar to createConversation
@@ -104,22 +109,26 @@ export class ConversationService {
 
       if (!conversationName && participants && participants.length > 0) {
         // Check if participants are in new format (objects with id, name, image)
-        if (typeof participants[0] === 'object' && participants[0].id) {
+        if (typeof participants[0] === "object" && participants[0].id) {
           // New format: concatenate id_name_image for each participant
           conversationName = participants
-            .map((p: any) => `${p.id}_${p.name}_${p.image || ''}`)
-            .join('+');
+            .map((p: any) => `${p.id}_${p.name}_${p.image || ""}`)
+            .join("+");
         } else {
           // Old format: just join participant strings
-          conversationName = identities.join('_');
+          conversationName = identities.join("_");
         }
       }
 
       // Check if conversation already exists (use uniqueName when possible)
       const client = this.twilioService.getClient();
-      const conversations = await client.conversations.v1.conversations.list({ limit: 1000 });
+      const conversations = await client.conversations.v1.conversations.list({
+        limit: 1000,
+      });
 
-      const existingConvo = uniqueName ? conversations.find((c) => c.uniqueName === uniqueName) : undefined;
+      const existingConvo = uniqueName
+        ? conversations.find((c) => c.uniqueName === uniqueName)
+        : undefined;
 
       if (existingConvo) {
         // If conversation already exists, fetch recent messages and return them
@@ -143,7 +152,11 @@ export class ConversationService {
 
       // Create new conversation
       const conversation = await client.conversations.v1.conversations.create({
-        friendlyName: conversationName || (identities.length >= 2 ? `Private: ${identities[0]} & ${identities[1]}` : 'Private Conversation'),
+        friendlyName:
+          conversationName ||
+          (identities.length >= 2
+            ? `Private: ${identities[0]} & ${identities[1]}`
+            : "Private Conversation"),
         uniqueName: uniqueName || undefined,
       });
 
@@ -164,7 +177,9 @@ export class ConversationService {
         existing: false,
       };
     } catch (error) {
-      throw new Error(`Failed to create private conversation: ${error.message}`);
+      throw new Error(
+        `Failed to create private conversation: ${error.message}`
+      );
     }
   }
 
@@ -190,9 +205,11 @@ export class ConversationService {
       const participant = await this.twilioService
         .getClient()
         .conversations.v1.conversations(conversationSid)
-        .participants.create({ 
-          'messagingBinding.address': phoneNumber,
-          'messagingBinding.proxyAddress': this.configService.get('TWILIO_PHONE_NUMBER')
+        .participants.create({
+          "messagingBinding.address": phoneNumber,
+          "messagingBinding.proxyAddress": this.configService.get(
+            "TWILIO_PHONE_NUMBER"
+          ),
         });
 
       return {
@@ -205,18 +222,83 @@ export class ConversationService {
     }
   }
 
-  async sendMessage(conversationSid: string, body: string, author: string, media?: string[]) {
+  async sendMessage(
+    conversationSid: string,
+    body: string,
+    author: string,
+    media?: string[]
+  ) {
     try {
       const messageData: any = { body, author };
-      
+
       if (media && media.length > 0) {
         messageData.media = media;
       }
 
-      const message = await this.twilioService
-        .getClient()
-        .conversations.v1.conversations(conversationSid)
-        .messages.create(messageData);
+      const client = this.twilioService.getClient();
+
+      // If we have media links, prefer creating a reusable Content resource
+      // and send the message referencing that content. Fall back to direct
+      // media send if Content creation fails.
+      let message: any;
+      if (
+        messageData.media &&
+        Array.isArray(messageData.media) &&
+        messageData.media.length > 0
+      ) {
+        try {
+          const contentBody: any = {
+            friendly_name: `content_${Date.now()}`,
+            language: "en",
+            types: {
+              "twilio/media": {
+                body: body || "",
+                media: messageData.media,
+              },
+            },
+          };
+
+          // Use Twilio client's request method to call Content API domain
+          // This uses the same credentials configured for the client.
+          const contentRes = await client.request({
+            method: "post",
+            url: "https://content.twilio.com/v1/Content",
+            body: contentBody,
+          } as any);
+
+          const contentSid =
+            contentRes && contentRes.sid ? contentRes.sid : undefined;
+
+          if (contentSid) {
+            message = await client.conversations.v1
+              .conversations(conversationSid)
+              .messages.create({
+                author,
+                contentSid,
+              });
+          } else {
+            // Fallback to direct media send
+            message = await client.conversations.v1
+              .conversations(conversationSid)
+              .messages.create(messageData);
+          }
+        } catch (err) {
+          // If content creation fails, log and fall back to direct media send
+          // eslint-disable-next-line no-console
+          console.warn(
+            "Content creation failed, sending message with media directly:",
+            err?.message || err
+          );
+          message = await client.conversations.v1
+            .conversations(conversationSid)
+            .messages.create(messageData);
+        }
+      } else {
+        // No media, create message normally
+        message = await client.conversations.v1
+          .conversations(conversationSid)
+          .messages.create(messageData);
+      }
 
       const result = {
         success: true,
@@ -243,31 +325,84 @@ export class ConversationService {
     }
   }
 
+  // Upload files (from multipart/form-data) to Twilio Media and return content URLs or SIDs
+  async uploadMediaFiles(files: Express.Multer.File[]): Promise<string[]> {
+    if (!files || files.length === 0) return [];
+
+    const client = this.twilioService.getClient();
+    const results: string[] = [];
+
+    for (const file of files) {
+      try {
+        let stream: NodeJS.ReadableStream;
+        if ((file as any).buffer) {
+          stream = Readable.from((file as any).buffer);
+        } else if ((file as any).path && fs.existsSync((file as any).path)) {
+          stream = fs.createReadStream((file as any).path);
+        } else {
+          continue;
+        }
+
+        const mediaRes: any = await client.conversations.v1.media.create({
+          filename: file.originalname || `file_${Date.now()}`,
+          contentType: file.mimetype || "application/octet-stream",
+          media: stream,
+        });
+
+        if (mediaRes && mediaRes.links && mediaRes.links.content) {
+          results.push(mediaRes.links.content);
+        } else if (mediaRes && mediaRes.sid) {
+          results.push(mediaRes.sid);
+        }
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn("Failed to upload media file:", err?.message || err);
+      }
+    }
+
+    return results;
+  }
+
   async listConversations(userId?: string) {
     try {
       const client = this.twilioService.getClient();
-      
-      const conversations = await client.conversations.v1.conversations.list({ limit: 1000 });
+
+      const conversations = await client.conversations.v1.conversations.list({
+        limit: 1000,
+      });
 
       // Parallelize fetching last message (and participants when userId filter is used)
       const convoPromises = conversations.map(async (conversation) => {
         const convoSid = conversation.sid;
 
-  // Fetch a batch of recent messages and pick the most-recent one by dateCreated.
-  // Some Twilio accounts may return messages in ascending order; to be safe we
-  // fetch a small batch and pick the newest message client-side.
-  const messagesP = client.conversations.v1.conversations(convoSid).messages.list({ limit: 100 });
-        const participantsP = userId ? client.conversations.v1.conversations(convoSid).participants.list() : Promise.resolve([]);
+        // Fetch a batch of recent messages and pick the most-recent one by dateCreated.
+        // Some Twilio accounts may return messages in ascending order; to be safe we
+        // fetch a small batch and pick the newest message client-side.
+        const messagesP = client.conversations.v1
+          .conversations(convoSid)
+          .messages.list({ limit: 100 });
+        const participantsP = userId
+          ? client.conversations.v1.conversations(convoSid).participants.list()
+          : Promise.resolve([]);
 
-        const [messagesRes, participantsRes] = await Promise.allSettled([messagesP, participantsP]);
+        const [messagesRes, participantsRes] = await Promise.allSettled([
+          messagesP,
+          participantsP,
+        ]);
 
         let last = null;
-        if (messagesRes.status === 'fulfilled' && Array.isArray(messagesRes.value) && messagesRes.value.length > 0) {
+        if (
+          messagesRes.status === "fulfilled" &&
+          Array.isArray(messagesRes.value) &&
+          messagesRes.value.length > 0
+        ) {
           // Find the message with the latest dateCreated. dateCreated can be a Date or string.
           try {
             last = messagesRes.value.reduce((a: any, b: any) => {
-              const aDate = a && a.dateCreated ? new Date(a.dateCreated) : new Date(0);
-              const bDate = b && b.dateCreated ? new Date(b.dateCreated) : new Date(0);
+              const aDate =
+                a && a.dateCreated ? new Date(a.dateCreated) : new Date(0);
+              const bDate =
+                b && b.dateCreated ? new Date(b.dateCreated) : new Date(0);
               return aDate >= bDate ? a : b;
             });
           } catch (e) {
@@ -277,9 +412,12 @@ export class ConversationService {
         } else {
           last = null;
         }
-        const participants = participantsRes.status === 'fulfilled' ? participantsRes.value : [];
+        const participants =
+          participantsRes.status === "fulfilled" ? participantsRes.value : [];
 
-        const hasUser = userId ? participants.some((p) => p.identity === userId) : true;
+        const hasUser = userId
+          ? participants.some((p) => p.identity === userId)
+          : true;
 
         if (!hasUser) return null;
 
@@ -302,7 +440,7 @@ export class ConversationService {
 
       const settled = await Promise.allSettled(convoPromises);
       const result = settled
-        .filter((s) => s.status === 'fulfilled')
+        .filter((s) => s.status === "fulfilled")
         .map((s: any) => s.value)
         .filter(Boolean);
 
@@ -319,7 +457,7 @@ export class ConversationService {
         .conversations.v1.conversations(conversationSid)
         .messages.list({ limit: 100 });
 
-      return messages.map(message => ({
+      return messages.map((message) => ({
         sid: message.sid,
         body: message.body,
         author: message.author,
@@ -333,9 +471,8 @@ export class ConversationService {
 
   async getMediaContent(mediaSid: string) {
     try {
-      
       return {
-        content_type: 'application/octet-stream',
+        content_type: "application/octet-stream",
         size: 0,
         url: `https://media.twiliocdn.com/${mediaSid}`,
       };
@@ -349,9 +486,9 @@ export class ConversationService {
       await this.twilioService
         .getClient()
         .conversations.v1.conversations(conversationSid)
-        .remove(); 
+        .remove();
 
-      return { success: true, message: 'Conversation deleted successfully' };
+      return { success: true, message: "Conversation deleted successfully" };
     } catch (error) {
       throw new Error(`Failed to delete conversation: ${error.message}`);
     }
@@ -361,7 +498,7 @@ export class ConversationService {
     try {
       // Note: This is a placeholder for enabling reachability
       // The actual implementation may vary based on your Twilio service configuration
-      return { success: true, message: 'Reachability feature configured' };
+      return { success: true, message: "Reachability feature configured" };
     } catch (error) {
       throw new Error(`Failed to enable reachability: ${error.message}`);
     }
