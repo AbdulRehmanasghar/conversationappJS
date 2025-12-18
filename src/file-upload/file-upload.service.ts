@@ -114,7 +114,8 @@ export class FileUploadService {
     const fileName = `${fileId}${fileExtension}`;
     const subDir = this.getSubDirectory(fileType);
     const filePath = path.join(this.uploadsDir, subDir, fileName);
-    const url = `/api/files/${subDir}/${fileName}`;
+    // Public URL served from the static uploads folder
+    const url = `/uploads/${subDir}/${fileName}`;
 
     // Save file
     fs.writeFileSync(filePath, file.buffer);
@@ -234,7 +235,7 @@ export class FileUploadService {
       return {
         width: metadata.width,
         height: metadata.height,
-        thumbnail: `/api/files/thumbnails/${thumbnailId}.jpg`,
+        thumbnail: `/uploads/thumbnails/${thumbnailId}.jpg`,
       };
     } catch (error) {
       console.error("Error processing image:", error);
@@ -284,6 +285,26 @@ export class FileUploadService {
     return metadata[fileId] || null;
   }
 
+  async updateFileMetadata(
+    fileId: string,
+    updates: Record<string, any>
+  ): Promise<any> {
+    const metadataPath = path.join(this.uploadsDir, "metadata.json");
+    if (!fs.existsSync(metadataPath)) return null;
+
+    const content = fs.readFileSync(metadataPath, "utf8");
+    const allMetadata = JSON.parse(content);
+    if (!allMetadata[fileId]) return null;
+
+    allMetadata[fileId] = {
+      ...allMetadata[fileId],
+      ...updates,
+    };
+
+    fs.writeFileSync(metadataPath, JSON.stringify(allMetadata, null, 2));
+    return allMetadata[fileId];
+  }
+
   async getFilesByConversation(conversationSid: string): Promise<any[]> {
     const metadataPath = path.join(this.uploadsDir, "metadata.json");
 
@@ -296,6 +317,19 @@ export class FileUploadService {
 
     return Object.values(metadata).filter(
       (file: any) => file.conversationSid === conversationSid
+    );
+  }
+
+  async getFilesByMessageSid(messageSid: string): Promise<any[]> {
+    if (!messageSid) return [];
+    const metadataPath = path.join(this.uploadsDir, "metadata.json");
+    if (!fs.existsSync(metadataPath)) return [];
+
+    const content = fs.readFileSync(metadataPath, "utf8");
+    const metadata = JSON.parse(content);
+
+    return Object.values(metadata).filter(
+      (file: any) => file.messageSid && file.messageSid === messageSid
     );
   }
 
@@ -313,9 +347,10 @@ export class FileUploadService {
 
       // Delete thumbnail if exists
       if (metadata.metadata?.thumbnail) {
+        // Convert thumbnail URL (/uploads/thumbnails/xx.jpg) to a filesystem path
         const thumbnailPath = path.join(
           process.cwd(),
-          metadata.metadata.thumbnail.replace("/api/files/", "uploads/")
+          metadata.metadata.thumbnail.replace(/^\//, "")
         );
         if (fs.existsSync(thumbnailPath)) {
           fs.unlinkSync(thumbnailPath);

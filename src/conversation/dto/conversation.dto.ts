@@ -73,8 +73,8 @@ export class SendMessageDto {
 
 export class SendMessageWithFilesDto {
   @IsString()
-  @IsNotEmpty()
-  body: string;
+  @IsOptional()
+  body?: string;
 
   @IsString()
   @IsNotEmpty()

@@ -299,14 +299,14 @@ export class ConversationService {
         .conversations.v1.conversations(conversationSid)
         .messages.create(messageData);
 
-      // Update file metadata with message SID
+      // Update file metadata with message SID (persist)
       for (const uploadedFile of uploadedFiles) {
-        const metadata = await this.fileUploadService.getFileMetadata(
-          uploadedFile.id
-        );
-        if (metadata) {
-          metadata.messageSid = message.sid;
-          // Re-save metadata (you might want to add an update method to FileUploadService)
+        try {
+          await this.fileUploadService.updateFileMetadata(uploadedFile.id, {
+            messageSid: message.sid,
+          });
+        } catch (e) {
+          // non-fatal, continue
         }
       }
 
@@ -396,21 +396,36 @@ export class ConversationService {
 
         if (!hasUser) return null;
 
-        return {
-          sid: convoSid,
-          friendly_name: conversation.friendlyName,
-          date_created: conversation.dateCreated,
-          date_updated: conversation.dateUpdated,
-          last_message: last
-            ? {
-                sid: last.sid,
-                body: last.body,
-                author: last.author,
-                date_created: last.dateCreated,
-                media: last.media || [],
-              }
-            : null,
-        };
+        return (async () => {
+          const base = process.env.BASE_URL || "http://localhost:3001";
+          let mediaUrls: string[] = [];
+          if (last && last.sid) {
+            try {
+              const files = await this.fileUploadService.getFilesByMessageSid(
+                last.sid
+              );
+              mediaUrls = (files || []).map((f: any) => `${base}${f.url}`);
+            } catch (e) {
+              mediaUrls = [];
+            }
+          }
+
+          return {
+            sid: convoSid,
+            friendly_name: conversation.friendlyName,
+            date_created: conversation.dateCreated,
+            date_updated: conversation.dateUpdated,
+            last_message: last
+              ? {
+                  sid: last.sid,
+                  body: last.body,
+                  author: last.author,
+                  date_created: last.dateCreated,
+                  media: mediaUrls,
+                }
+              : null,
+          };
+        })();
       });
 
       const settled = await Promise.allSettled(convoPromises);
@@ -432,13 +447,31 @@ export class ConversationService {
         .conversations.v1.conversations(conversationSid)
         .messages.list({ limit: 100 });
 
-      return messages.map((message) => ({
-        sid: message.sid,
-        body: message.body,
-        author: message.author,
-        date_created: message.dateCreated,
-        media: message.media,
-      }));
+      const base = process.env.BASE_URL || "http://localhost:3001";
+
+      const mapped = await Promise.all(
+        messages.map(async (message) => {
+          let mediaUrls: string[] = [];
+          try {
+            const files = await this.fileUploadService.getFilesByMessageSid(
+              message.sid
+            );
+            mediaUrls = (files || []).map((f: any) => `${base}${f.url}`);
+          } catch (e) {
+            mediaUrls = [];
+          }
+
+          return {
+            sid: message.sid,
+            body: message.body,
+            author: message.author,
+            date_created: message.dateCreated,
+            media: mediaUrls,
+          };
+        })
+      );
+
+      return mapped;
     } catch (error) {
       throw new Error(`Failed to get messages: ${error.message}`);
     }

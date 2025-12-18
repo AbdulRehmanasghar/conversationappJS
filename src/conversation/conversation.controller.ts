@@ -155,36 +155,36 @@ export class ConversationController {
     }
   }
 
+  // @Post(":convoSid/send-message")
+  // async sendMessage(
+  //   @Param("convoSid") convoSid: string,
+  //   @Body() sendMessageDto: SendMessageDto
+  // ) {
+  //   try {
+  //     const result = await this.conversationService.sendMessage(
+  //       convoSid,
+  //       sendMessageDto.body,
+  //       sendMessageDto.author,
+  //       sendMessageDto.media
+  //     );
+
+  //     return {
+  //       status: 200,
+  //       message: "Message sent successfully",
+  //       data: result,
+  //     };
+  //   } catch (error) {
+  //     throw new HttpException(
+  //       {
+  //         status: 500,
+  //         message: error.message,
+  //       },
+  //       HttpStatus.INTERNAL_SERVER_ERROR
+  //     );
+  //   }
+  // }
+
   @Post(":convoSid/send-message")
-  async sendMessage(
-    @Param("convoSid") convoSid: string,
-    @Body() sendMessageDto: SendMessageDto
-  ) {
-    try {
-      const result = await this.conversationService.sendMessage(
-        convoSid,
-        sendMessageDto.body,
-        sendMessageDto.author,
-        sendMessageDto.media
-      );
-
-      return {
-        status: 200,
-        message: "Message sent successfully",
-        data: result,
-      };
-    } catch (error) {
-      throw new HttpException(
-        {
-          status: 500,
-          message: error.message,
-        },
-        HttpStatus.INTERNAL_SERVER_ERROR
-      );
-    }
-  }
-
-  @Post(":convoSid/send-message-with-files")
   @UseInterceptors(FilesInterceptor("files", 10)) // Max 10 files
   async sendMessageWithFiles(
     @Param("convoSid") convoSid: string,
