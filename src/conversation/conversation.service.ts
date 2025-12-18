@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { TwilioService } from "../twilio/twilio.service";
+import { FileUploadService } from "../file-upload/file-upload.service";
 import * as jwt from "jsonwebtoken";
 
 @Injectable()
@@ -9,7 +10,8 @@ export class ConversationService {
 
   constructor(
     private twilioService: TwilioService,
-    private configService: ConfigService
+    private configService: ConfigService,
+    private fileUploadService: FileUploadService
   ) {}
 
   // Inject ChatGateway after module initialization to avoid circular dependency
@@ -260,6 +262,79 @@ export class ConversationService {
       return result;
     } catch (error) {
       throw new Error(`Failed to send message: ${error.message}`);
+    }
+  }
+
+  // Send message with uploaded files
+  async sendMessageWithUploadedFiles(
+    conversationSid: string,
+    body: string,
+    author: string,
+    files: Express.Multer.File[]
+  ) {
+    try {
+      // First upload the files
+      const uploadedFiles = await this.fileUploadService.uploadMultipleFiles(
+        files,
+        {
+          conversationSid,
+          uploadedBy: author,
+        }
+      );
+
+      // Extract URLs for Twilio
+      const mediaUrls = uploadedFiles.map(
+        (file) =>
+          `${process.env.BASE_URL || "http://localhost:3001"}${file.url}`
+      );
+
+      // Send message with media URLs
+      const messageData: any = { body, author };
+      if (mediaUrls.length > 0) {
+        messageData.media = mediaUrls;
+      }
+
+      const message = await this.twilioService
+        .getClient()
+        .conversations.v1.conversations(conversationSid)
+        .messages.create(messageData);
+
+      // Update file metadata with message SID
+      for (const uploadedFile of uploadedFiles) {
+        const metadata = await this.fileUploadService.getFileMetadata(
+          uploadedFile.id
+        );
+        if (metadata) {
+          metadata.messageSid = message.sid;
+          // Re-save metadata (you might want to add an update method to FileUploadService)
+        }
+      }
+
+      const result = {
+        success: true,
+        message_sid: message.sid,
+        body: message.body,
+        author: message.author,
+        date_created: message.dateCreated,
+        uploaded_files: uploadedFiles,
+        media_urls: mediaUrls,
+      };
+
+      // Broadcast via Socket.IO if ChatGateway is available
+      if (this.chatGateway) {
+        this.chatGateway.broadcastMessage(conversationSid, {
+          sid: message.sid,
+          body: message.body,
+          author: message.author,
+          dateCreated: message.dateCreated,
+          media: mediaUrls,
+          uploadedFiles: uploadedFiles,
+        });
+      }
+
+      return result;
+    } catch (error) {
+      throw new Error(`Failed to send message with files: ${error.message}`);
     }
   }
 

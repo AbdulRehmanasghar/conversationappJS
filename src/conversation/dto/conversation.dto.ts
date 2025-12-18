@@ -1,5 +1,11 @@
-import { IsString, IsNotEmpty, IsOptional, IsArray, ValidateNested } from 'class-validator';
-import { Type } from 'class-transformer';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsArray,
+  ValidateNested,
+} from "class-validator";
+import { Type } from "class-transformer";
 
 export class ParticipantDto {
   @IsString()
@@ -63,4 +69,14 @@ export class SendMessageDto {
   @IsArray()
   @IsOptional()
   media?: string[];
+}
+
+export class SendMessageWithFilesDto {
+  @IsString()
+  @IsNotEmpty()
+  body: string;
+
+  @IsString()
+  @IsNotEmpty()
+  author: string;
 }

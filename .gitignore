@@ -3,6 +3,10 @@
 # compiled output
 /node_modules
 
+# File uploads
+/uploads
+/test-files
+
 # Logs
 logs
 *.log
