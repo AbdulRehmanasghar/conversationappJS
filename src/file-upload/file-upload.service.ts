@@ -166,9 +166,7 @@ export class FileUploadService {
   }
 
   private validateFile(file: Express.Multer.File): void {
-    if (!file) {
-      throw new Error("No file provided");
-    }
+    if (!file) throw new Error("No file provided");
 
     if (file.size > this.maxFileSize) {
       throw new Error(
@@ -176,9 +174,47 @@ export class FileUploadService {
       );
     }
 
-    if (!this.allowedMimeTypes.includes(file.mimetype)) {
-      throw new Error(`File type ${file.mimetype} is not allowed`);
+    // Some clients (mobile pickers) upload with a generic content-type
+    // `application/octet-stream`. Try to detect from filename extension
+    // and accept when it maps to an allowed MIME type.
+    let detectedMime: string | false = file.mimetype || false;
+
+    if (!detectedMime || detectedMime === "application/octet-stream") {
+      const lookup = mime.lookup(file.originalname || "") as string | false;
+      if (lookup) detectedMime = lookup;
+      else {
+        const ext = path.extname(file.originalname || "").toLowerCase();
+        const extMap: Record<string, string> = {
+          ".jpg": "image/jpeg",
+          ".jpeg": "image/jpeg",
+          ".png": "image/png",
+          ".gif": "image/gif",
+          ".webp": "image/webp",
+          ".bmp": "image/bmp",
+          ".mp4": "video/mp4",
+          ".mov": "video/quicktime",
+          ".avi": "video/x-msvideo",
+          ".mp3": "audio/mpeg",
+          ".wav": "audio/wav",
+          ".pdf": "application/pdf",
+        };
+
+        if (ext && extMap[ext]) detectedMime = extMap[ext];
+      }
     }
+
+    if (!detectedMime) {
+      throw new Error(
+        `Could not determine file MIME type for ${file.originalname}`
+      );
+    }
+
+    if (!this.allowedMimeTypes.includes(detectedMime as string)) {
+      throw new Error(`File type ${detectedMime} is not allowed`);
+    }
+
+    // Normalize the file mimetype for downstream processing
+    (file as any).mimetype = detectedMime;
   }
 
   private determineFileType(

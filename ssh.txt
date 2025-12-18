@@ -2,3 +2,34 @@ server for Twilio: 4.204.32.85
 username: sjavms
 password: sjaVMS4Tw!llio
 ssh sjavms@4.204.32.85
+/var/www/html/conversationappJS$
+/etc/nginx/sites-available
+
+
+
+
+server {
+    listen 80;
+    server_name 4.204.32.85; # Replace with your domain or server IP
+
+    # Redirect all HTTP traffic to HTTPS if you later enable SSL
+    # return 301 https://$host$request_uri;
+
+    location / {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    # Optional: serve static files (if any) from a folder
+    location /static/ {
+        root /var/www/html/conversationappJS;
+    }
+
+    # Logging
+    access_log /var/log/nginx/conversationappJS.access.log;
+    error_log  /var/log/nginx/conversationappJS.error.log;
+}
