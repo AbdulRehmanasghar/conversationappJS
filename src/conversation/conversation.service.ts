@@ -2,8 +2,6 @@ import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { TwilioService } from "../twilio/twilio.service";
 import * as jwt from "jsonwebtoken";
-import * as fs from "fs";
-import { Readable } from "stream";
 
 @Injectable()
 export class ConversationService {
@@ -235,70 +233,10 @@ export class ConversationService {
         messageData.media = media;
       }
 
-      const client = this.twilioService.getClient();
-
-      // If we have media links, prefer creating a reusable Content resource
-      // and send the message referencing that content. Fall back to direct
-      // media send if Content creation fails.
-      let message: any;
-      if (
-        messageData.media &&
-        Array.isArray(messageData.media) &&
-        messageData.media.length > 0
-      ) {
-        try {
-          const contentBody: any = {
-            friendly_name: `content_${Date.now()}`,
-            language: "en",
-            types: {
-              "twilio/media": {
-                body: body || "",
-                media: messageData.media,
-              },
-            },
-          };
-
-          // Use Twilio client's request method to call Content API domain
-          // This uses the same credentials configured for the client.
-          const contentRes = await client.request({
-            method: "post",
-            url: "https://content.twilio.com/v1/Content",
-            body: contentBody,
-          } as any);
-
-          const contentSid =
-            contentRes && contentRes.sid ? contentRes.sid : undefined;
-
-          if (contentSid) {
-            message = await client.conversations.v1
-              .conversations(conversationSid)
-              .messages.create({
-                author,
-                contentSid,
-              });
-          } else {
-            // Fallback to direct media send
-            message = await client.conversations.v1
-              .conversations(conversationSid)
-              .messages.create(messageData);
-          }
-        } catch (err) {
-          // If content creation fails, log and fall back to direct media send
-          // eslint-disable-next-line no-console
-          console.warn(
-            "Content creation failed, sending message with media directly:",
-            err?.message || err
-          );
-          message = await client.conversations.v1
-            .conversations(conversationSid)
-            .messages.create(messageData);
-        }
-      } else {
-        // No media, create message normally
-        message = await client.conversations.v1
-          .conversations(conversationSid)
-          .messages.create(messageData);
-      }
+      const message = await this.twilioService
+        .getClient()
+        .conversations.v1.conversations(conversationSid)
+        .messages.create(messageData);
 
       const result = {
         success: true,
@@ -323,44 +261,6 @@ export class ConversationService {
     } catch (error) {
       throw new Error(`Failed to send message: ${error.message}`);
     }
-  }
-
-  // Upload files (from multipart/form-data) to Twilio Media and return content URLs or SIDs
-  async uploadMediaFiles(files: Express.Multer.File[]): Promise<string[]> {
-    if (!files || files.length === 0) return [];
-
-    const client = this.twilioService.getClient();
-    const results: string[] = [];
-
-    for (const file of files) {
-      try {
-        let stream: NodeJS.ReadableStream;
-        if ((file as any).buffer) {
-          stream = Readable.from((file as any).buffer);
-        } else if ((file as any).path && fs.existsSync((file as any).path)) {
-          stream = fs.createReadStream((file as any).path);
-        } else {
-          continue;
-        }
-
-        const mediaRes: any = await client.conversations.v1.media.create({
-          filename: file.originalname || `file_${Date.now()}`,
-          contentType: file.mimetype || "application/octet-stream",
-          media: stream,
-        });
-
-        if (mediaRes && mediaRes.links && mediaRes.links.content) {
-          results.push(mediaRes.links.content);
-        } else if (mediaRes && mediaRes.sid) {
-          results.push(mediaRes.sid);
-        }
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.warn("Failed to upload media file:", err?.message || err);
-      }
-    }
-
-    return results;
   }
 
   async listConversations(userId?: string) {

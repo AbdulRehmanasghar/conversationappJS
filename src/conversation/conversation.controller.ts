@@ -8,30 +8,30 @@ import {
   Query,
   HttpException,
   HttpStatus,
-} from '@nestjs/common';
-import { ConversationService } from './conversation.service';
-import { GenerateTokenDto } from './dto/generate-token.dto';
+} from "@nestjs/common";
+import { ConversationService } from "./conversation.service";
+import { GenerateTokenDto } from "./dto/generate-token.dto";
 import {
   CreateConversationDto,
   CreatePrivateConversationDto,
   AddParticipantDto,
   SendMessageDto,
-} from './dto/conversation.dto';
+} from "./dto/conversation.dto";
 
-@Controller('conversations')
+@Controller("conversations")
 export class ConversationController {
   constructor(private readonly conversationService: ConversationService) {}
 
-  @Post('generate-token')
+  @Post("generate-token")
   async generateToken(@Body() generateTokenDto: GenerateTokenDto) {
     try {
       const token = await this.conversationService.generateToken(
-        generateTokenDto.user_id,
+        generateTokenDto.user_id
       );
 
       return {
         status: 200,
-        message: 'Token generated',
+        message: "Token generated",
         token,
       };
     } catch (error) {
@@ -40,22 +40,24 @@ export class ConversationController {
           status: 500,
           message: `Failed to generate token: ${error.message}`,
         },
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
   }
 
-  @Post('create')
-  async createConversation(@Body() createConversationDto: CreateConversationDto) {
+  @Post("create")
+  async createConversation(
+    @Body() createConversationDto: CreateConversationDto
+  ) {
     try {
       const result = await this.conversationService.createConversation(
         createConversationDto.friendly_name,
-        createConversationDto.participants,
+        createConversationDto.participants
       );
 
       return {
         status: 200,
-        message: 'Conversation created successfully',
+        message: "Conversation created successfully",
         data: result,
       };
     } catch (error) {
@@ -64,24 +66,24 @@ export class ConversationController {
           status: 500,
           message: error.message,
         },
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
   }
 
-  @Post('newconversation')
+  @Post("newconversation")
   async createPrivateConversation(
-    @Body() createConversationDto: CreateConversationDto,
+    @Body() createConversationDto: CreateConversationDto
   ) {
     try {
       const result = await this.conversationService.createPrivateConversation(
-          createConversationDto.friendly_name,
-        createConversationDto.participants,
+        createConversationDto.friendly_name,
+        createConversationDto.participants
       );
 
       return {
         status: 200,
-        message: 'Private conversation created successfully',
+        message: "Private conversation created successfully",
         data: result,
       };
     } catch (error) {
@@ -90,25 +92,25 @@ export class ConversationController {
           status: 500,
           message: error.message,
         },
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
   }
 
-  @Post(':convoSid/add-chat-participant')
+  @Post(":convoSid/add-chat-participant")
   async addChatParticipant(
-    @Param('convoSid') convoSid: string,
-    @Body() addParticipantDto: AddParticipantDto,
+    @Param("convoSid") convoSid: string,
+    @Body() addParticipantDto: AddParticipantDto
   ) {
     try {
       const result = await this.conversationService.addChatParticipant(
         convoSid,
-        addParticipantDto.identity,
+        addParticipantDto.identity
       );
 
       return {
         status: 200,
-        message: 'Chat participant added successfully',
+        message: "Chat participant added successfully",
         data: result,
       };
     } catch (error) {
@@ -117,25 +119,25 @@ export class ConversationController {
           status: 500,
           message: error.message,
         },
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
   }
 
-  @Post(':convoSid/add-sms-participant')
+  @Post(":convoSid/add-sms-participant")
   async addSmsParticipant(
-    @Param('convoSid') convoSid: string,
-    @Body() addParticipantDto: AddParticipantDto,
+    @Param("convoSid") convoSid: string,
+    @Body() addParticipantDto: AddParticipantDto
   ) {
     try {
       const result = await this.conversationService.addSmsParticipant(
         convoSid,
-        addParticipantDto.phone_number,
+        addParticipantDto.phone_number
       );
 
       return {
         status: 200,
-        message: 'SMS participant added successfully',
+        message: "SMS participant added successfully",
         data: result,
       };
     } catch (error) {
@@ -144,27 +146,27 @@ export class ConversationController {
           status: 500,
           message: error.message,
         },
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
   }
 
-  @Post(':convoSid/send-message')
+  @Post(":convoSid/send-message")
   async sendMessage(
-    @Param('convoSid') convoSid: string,
-    @Body() sendMessageDto: SendMessageDto,
+    @Param("convoSid") convoSid: string,
+    @Body() sendMessageDto: SendMessageDto
   ) {
     try {
       const result = await this.conversationService.sendMessage(
         convoSid,
         sendMessageDto.body,
         sendMessageDto.author,
-        sendMessageDto.media,
+        sendMessageDto.media
       );
 
       return {
         status: 200,
-        message: 'Message sent successfully',
+        message: "Message sent successfully",
         data: result,
       };
     } catch (error) {
@@ -173,19 +175,20 @@ export class ConversationController {
           status: 500,
           message: error.message,
         },
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
   }
 
   @Get()
-  async listConversations(@Query('userId') userId?: string) {
+  async listConversations(@Query("userId") userId?: string) {
     try {
-      const conversations = await this.conversationService.listConversations(userId);
+      const conversations =
+        await this.conversationService.listConversations(userId);
 
       return {
         status: 200,
-        message: 'Conversations retrieved successfully',
+        message: "Conversations retrieved successfully",
         data: conversations,
       };
     } catch (error) {
@@ -194,19 +197,19 @@ export class ConversationController {
           status: 500,
           message: error.message,
         },
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
   }
 
-  @Get(':convoSid/messages')
-  async getMessages(@Param('convoSid') convoSid: string) {
+  @Get(":convoSid/messages")
+  async getMessages(@Param("convoSid") convoSid: string) {
     try {
       const messages = await this.conversationService.getMessages(convoSid);
 
       return {
         status: 200,
-        message: 'Messages retrieved successfully',
+        message: "Messages retrieved successfully",
         data: messages,
       };
     } catch (error) {
@@ -215,19 +218,19 @@ export class ConversationController {
           status: 500,
           message: error.message,
         },
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
   }
 
-  @Get('media/:mediaSid/content')
-  async getMediaContent(@Param('mediaSid') mediaSid: string) {
+  @Get("media/:mediaSid/content")
+  async getMediaContent(@Param("mediaSid") mediaSid: string) {
     try {
       const media = await this.conversationService.getMediaContent(mediaSid);
 
       return {
         status: 200,
-        message: 'Media content retrieved successfully',
+        message: "Media content retrieved successfully",
         data: media,
       };
     } catch (error) {
@@ -236,19 +239,20 @@ export class ConversationController {
           status: 500,
           message: error.message,
         },
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
   }
 
-  @Delete(':convoSid')
-  async deleteConversation(@Param('convoSid') convoSid: string) {
+  @Delete(":convoSid")
+  async deleteConversation(@Param("convoSid") convoSid: string) {
     try {
-      const result = await this.conversationService.deleteConversation(convoSid);
+      const result =
+        await this.conversationService.deleteConversation(convoSid);
 
       return {
         status: 200,
-        message: 'Conversation deleted successfully',
+        message: "Conversation deleted successfully",
         data: result,
       };
     } catch (error) {
@@ -257,19 +261,19 @@ export class ConversationController {
           status: 500,
           message: error.message,
         },
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
   }
 
-  @Post('enable-reachability')
+  @Post("enable-reachability")
   async enableReachability() {
     try {
       const result = await this.conversationService.enableReachability();
 
       return {
         status: 200,
-        message: 'Reachability enabled successfully',
+        message: "Reachability enabled successfully",
         data: result,
       };
     } catch (error) {
@@ -278,19 +282,20 @@ export class ConversationController {
           status: 500,
           message: error.message,
         },
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
   }
 
-  @Get('users/:identity/reachability')
-  async getUserReachability(@Param('identity') identity: string) {
+  @Get("users/:identity/reachability")
+  async getUserReachability(@Param("identity") identity: string) {
     try {
-      const result = await this.conversationService.getUserReachability(identity);
+      const result =
+        await this.conversationService.getUserReachability(identity);
 
       return {
         status: 200,
-        message: 'User reachability retrieved successfully',
+        message: "User reachability retrieved successfully",
         data: result,
       };
     } catch (error) {
@@ -299,19 +304,20 @@ export class ConversationController {
           status: 500,
           message: error.message,
         },
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
   }
 
-  @Get(':userId/conversations')
-  async getUserConversations(@Param('userId') userId: string) {
+  @Get(":userId/conversations")
+  async getUserConversations(@Param("userId") userId: string) {
     try {
-      const conversations = await this.conversationService.listConversations(userId);
+      const conversations =
+        await this.conversationService.listConversations(userId);
 
       return {
         status: 200,
-        message: 'User conversations retrieved successfully',
+        message: "User conversations retrieved successfully",
         data: conversations,
       };
     } catch (error) {
@@ -320,7 +326,7 @@ export class ConversationController {
           status: 500,
           message: error.message,
         },
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
   }
