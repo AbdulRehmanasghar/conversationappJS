@@ -221,7 +221,9 @@ export class ChatGateway
   private async onSendMessage(socket: Socket, data: any): Promise<void> {
     const { conversationSid, body, author, media } = data;
 
-    console.log(`💬 Message from ${author}: ${body.substring(0, 50)}...`);
+    const preview =
+      body && typeof body === "string" ? body.substring(0, 50) : "<no body>";
+    console.log(`💬 Message from ${author}: ${preview}...`);
 
     try {
       // Send via Twilio API (this will be the real message)
