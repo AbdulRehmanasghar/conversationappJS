@@ -378,14 +378,33 @@ export class ChatGateway
 
   // Broadcast a message to everyone connected to socket
   public broadcastMessage(conversationSid: string, message: any): void {
-    this.io.emit("new_message", {
-      sid: message.sid,
-      body: message.body,
-      author: message.author,
-      dateCreated: message.dateCreated,
-      media: message.media || [],
-    });
-    console.log("Broadcasted message");
+    const dateCreated =
+      message && message.dateCreated
+        ? new Date(message.dateCreated).toISOString()
+        : null;
+    const dateUpdated =
+      message && message.dateUpdated
+        ? new Date(message.dateUpdated).toISOString()
+        : null;
+
+    const payload = {
+      status: 200,
+      message: "",
+      data: {
+        success: true,
+        conversationSid: conversationSid,
+        friendlyName: message && message.friendlyName ? message.friendlyName : "",
+        sid: message && message.sid ? message.sid : null,
+        body: message && message.body ? message.body : null,
+        author: message && message.author ? message.author : null,
+        datecreated: dateCreated,
+        dateupdated: dateUpdated,
+        media_urls: message && message.media ? message.media : [],
+      },
+    };
+
+    this.io.emit("new_message", payload);
+    console.log("Broadcasted message to all clients for conversation", conversationSid);
   }
 
   // Broadcast any update to everyone connected to socket

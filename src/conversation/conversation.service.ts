@@ -250,13 +250,32 @@ export class ConversationService {
 
       // Broadcast via Socket.IO if ChatGateway is available
       if (this.chatGateway) {
-        this.chatGateway.broadcastMessage(conversationSid, {
-          sid: message.sid,
-          body: message.body,
-          author: message.author,
-          dateCreated: message.dateCreated,
-          media: media || [],
-        });
+        try {
+          let friendlyName = "";
+          let dateUpdated: any = null;
+          try {
+            const convo = await this.twilioService
+              .getClient()
+              .conversations.v1.conversations(conversationSid)
+              .fetch();
+            friendlyName = convo && convo.friendlyName ? convo.friendlyName : "";
+            dateUpdated = convo && convo.dateUpdated ? convo.dateUpdated : null;
+          } catch (e) {
+            // non-fatal
+          }
+
+          this.chatGateway.broadcastMessage(conversationSid, {
+            sid: message.sid,
+            body: message.body,
+            author: message.author,
+            dateCreated: message.dateCreated,
+            dateUpdated,
+            media: media || [],
+            friendlyName,
+          });
+        } catch (e) {
+          // ignore gateway errors
+        }
       }
 
       return result;
@@ -322,14 +341,33 @@ export class ConversationService {
 
       // Broadcast via Socket.IO if ChatGateway is available
       if (this.chatGateway) {
-        this.chatGateway.broadcastMessage(conversationSid, {
-          sid: message.sid,
-          body: message.body,
-          author: message.author,
-          dateCreated: message.dateCreated,
-          media: mediaUrls,
-          uploadedFiles: uploadedFiles,
-        });
+        try {
+          let friendlyName = "";
+          let dateUpdated: any = null;
+          try {
+            const convo = await this.twilioService
+              .getClient()
+              .conversations.v1.conversations(conversationSid)
+              .fetch();
+            friendlyName = convo && convo.friendlyName ? convo.friendlyName : "";
+            dateUpdated = convo && convo.dateUpdated ? convo.dateUpdated : null;
+          } catch (e) {
+            // non-fatal
+          }
+
+          this.chatGateway.broadcastMessage(conversationSid, {
+            sid: message.sid,
+            body: message.body,
+            author: message.author,
+            dateCreated: message.dateCreated,
+            dateUpdated,
+            media: mediaUrls,
+            uploadedFiles: uploadedFiles,
+            friendlyName,
+          });
+        } catch (e) {
+          // ignore gateway errors
+        }
       }
 
       return result;
