@@ -258,7 +258,8 @@ export class ConversationService {
               .getClient()
               .conversations.v1.conversations(conversationSid)
               .fetch();
-            friendlyName = convo && convo.friendlyName ? convo.friendlyName : "";
+            friendlyName =
+              convo && convo.friendlyName ? convo.friendlyName : "";
             dateUpdated = convo && convo.dateUpdated ? convo.dateUpdated : null;
           } catch (e) {
             // non-fatal
@@ -349,7 +350,8 @@ export class ConversationService {
               .getClient()
               .conversations.v1.conversations(conversationSid)
               .fetch();
-            friendlyName = convo && convo.friendlyName ? convo.friendlyName : "";
+            friendlyName =
+              convo && convo.friendlyName ? convo.friendlyName : "";
             dateUpdated = convo && convo.dateUpdated ? convo.dateUpdated : null;
           } catch (e) {
             // non-fatal

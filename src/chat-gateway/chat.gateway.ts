@@ -393,7 +393,8 @@ export class ChatGateway
       data: {
         success: true,
         conversationSid: conversationSid,
-        friendlyName: message && message.friendlyName ? message.friendlyName : "",
+        friendlyName:
+          message && message.friendlyName ? message.friendlyName : "",
         sid: message && message.sid ? message.sid : null,
         body: message && message.body ? message.body : null,
         author: message && message.author ? message.author : null,
@@ -404,7 +405,10 @@ export class ChatGateway
     };
 
     this.io.emit("new_message", payload);
-    console.log("Broadcasted message to all clients for conversation", conversationSid);
+    console.log(
+      "Broadcasted message to all clients for conversation",
+      conversationSid
+    );
   }
 
   // Broadcast any update to everyone connected to socket
