@@ -1,0 +1,32 @@
+name: Pull code & restart server
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: SSH and deploy
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USER }}
+          password: ${{ secrets.PASSWORD }}
+          script: |
+            set -e
+            cd /var/www/html/conversationappJS
+            git fetch --all
+            git reset --hard origin/main
+            git clean -fd
+
+            # Install deps 
+            npm install || true
+
+            # Restart server (adjust command as needed)
+            pm2 restart all || true
