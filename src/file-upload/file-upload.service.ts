@@ -56,6 +56,8 @@ export class FileUploadService {
     "audio/wav",
     "audio/ogg",
     "audio/mp4",
+    "audio/x-m4a",
+    "audio/m4a",
     "audio/aac",
     "audio/webm",
     // Documents
@@ -196,6 +198,7 @@ export class FileUploadService {
           ".avi": "video/x-msvideo",
           ".mp3": "audio/mpeg",
           ".wav": "audio/wav",
+          ".m4a": "audio/mp4",
           ".pdf": "application/pdf",
         };
 
